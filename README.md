@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐍 Solana Snake
 
-## Getting Started
+A classic Snake game built with Next.js 15 and TypeScript, integrated with Solana blockchain for on-chain leaderboards and score tracking.
 
-First, run the development server:
+![Solana Snake Game](https://img.shields.io/badge/Solana-Snake-green)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+
+## 🎮 Features
+
+- **Classic Snake Gameplay** – Smooth controls with keyboard arrows
+- **Solana Wallet Integration** – Connect with Phantom, Solflare, or Backpack
+- **On-Chain Leaderboard** – Top scores stored permanently on Solana Devnet
+- **Local High Score** – Save your best score in browser storage
+- **Responsive Design** – Play on desktop or mobile
+- **Real-time Feedback** – Score updates and game state indicators
+
+## 🚀 Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| Next.js 15 | React framework with App Router |
+| TypeScript | Type-safe development |
+| Tailwind CSS | Styling and responsive design |
+| Solana Web3.js | Blockchain interaction |
+| @solana/wallet-adapter | Wallet connection |
+| Anchor (Coming Soon) | Smart contract deployment |
+
+## 📋 Prerequisites
+
+- Node.js 18+ (v24 compatible)
+- npm or yarn
+- A Solana wallet (Phantom, Solflare, or Backpack)
+- Solana Devnet SOL for transaction fees (get from [faucet](https://faucet.solana.com/))
+
+## 🔧 Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/snake-web3.git
+
+# Navigate to project directory
+cd snake-web3
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Open http://localhost:3000 to play!
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+🎯 Game Controls
+Key	Action
+⬆️ / ⬇️ / ⬅️ / ➡️	Move snake
+P	Pause / Resume
+R	Restart game
+Space	Restart from game over
+🔗 Wallet Connection
+Click "Connect Wallet" button in the top-right corner
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Select your preferred wallet (Phantom, Solflare, or Backpack)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Approve the connection request
 
-## Learn More
+Your wallet address will appear when connected
 
-To learn more about Next.js, take a look at the following resources:
+Scores are automatically submitted to the blockchain when game over
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+🏆 Leaderboard
+The leaderboard displays the top 10 scores stored on Solana:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Your best score is highlighted in green
 
-## Deploy on Vercel
+Connected wallet shows your rank
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Real-time updates after each game
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+📁 Project Structure
+text
+snake-web3/
+├── app/
+│   ├── components/
+│   │   ├── SnakeGame.tsx      # Main game logic
+│   │   ├── WalletButton.tsx   # Wallet connection UI
+│   │   ├── Leaderboard.tsx    # Score display
+│   │   └── WalletProvider.tsx # Solana context
+│   ├── layout.tsx             # Root layout
+│   ├── page.tsx               # Home page
+│   └── globals.css            # Global styles
+├── public/                    # Static assets
+├── package.json
+├── tsconfig.json
+├── tailwind.config.js
+└── README.md
+🧪 Testing
+bash
+# Run linter
+npm run lint
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+🚧 Upcoming Features
+□ Anchor smart contract for immutable score storage
+□ SPL token rewards for high scores
+□ NFT badges for top players
+□ Multiplayer mode
+□ Power-ups and obstacles
+🤝 Contributing
+Fork the repository
+
+Create your feature branch (git checkout -b feature/AmazingFeature)
+
+Commit your changes (git commit -m 'Add some AmazingFeature')
+
+Push to the branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+
+📝 License
+Distributed under the MIT License. See LICENSE for more information.
+
+🙏 Acknowledgments
+Next.js – React framework
+
+Solana – Blockchain platform
+
+Tailwind CSS – CSS framework
+
+Wallet Adapter – Solana wallet integration
+
+Made with ❤️ for the Solana ecosystem
+# snake-web3
