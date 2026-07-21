@@ -16,6 +16,7 @@ A classic Snake game built with Next.js 15 and TypeScript, integrated with Solan
 - **Local High Score** – Save your best score in browser storage
 - **Responsive Design** – Play on desktop or mobile
 - **Real-time Feedback** – Score updates and game state indicators
+- **Transaction History** – View your submitted transactions on Solana Explorer
 
 ## 🚀 Tech Stack
 
@@ -27,14 +28,14 @@ A classic Snake game built with Next.js 15 and TypeScript, integrated with Solan
 | Solana Web3.js | Blockchain interaction |
 | @solana/wallet-adapter | Wallet connection |
 | Anchor 0.29.0 | Smart contract framework |
-| Rust 1.75.0 | Smart contract language |
+| Rust 1.85.0 | Smart contract language |
 
 ## 📋 Prerequisites
 
 - Node.js 18+ (v24 compatible)
-- Rust 1.75.0
+- Rust 1.85.0
 - Anchor CLI 0.29.0
-- Solana CLI 1.18.17
+- Solana CLI 1.18.26
 - A Solana wallet (Phantom, Solflare, or Backpack)
 - Solana Devnet SOL for transaction fees (get from [faucet](https://faucet.solana.com/))
 
@@ -45,7 +46,7 @@ A classic Snake game built with Next.js 15 and TypeScript, integrated with Solan
 ```bash
 git clone https://github.com/yourusername/snake-web3.git
 cd snake-web3
-2. Install frontend dependencies
+2. Install dependencies
 bash
 npm install
 3. Set up environment variables
@@ -87,6 +88,8 @@ Your best score is highlighted in green
 Connected wallet shows your rank
 
 Real-time updates after each game
+
+Transaction links to Solana Explorer
 
 📁 Project Structure
 text
