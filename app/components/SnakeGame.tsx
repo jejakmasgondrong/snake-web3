@@ -6,7 +6,7 @@ import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
 import { Program, AnchorProvider, BN } from '@project-serum/anchor'
 import WalletButton from './WalletButton'
 import Leaderboard from './Leaderboard'
-import idl from '../idl/snake_program.json'
+import idl from '@/idl/snake_program.json'
 
 const BOARD_SIZE = 20
 const CELL_SIZE = 20
