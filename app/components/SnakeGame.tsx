@@ -6,7 +6,9 @@ import { Program, AnchorProvider } from '@project-serum/anchor'
 import { useWallet } from '@solana/wallet-adapter-react'
 import WalletButton from './WalletButton'
 import Leaderboard from './Leaderboard'
-import idl from '../../idl/snake_program.json'
+
+// IDL dummy untuk mock mode (ga dipake karena SKIP_BLOCKCHAIN = true)
+const idl = { version: "0.1.0", name: "snake_program", instructions: [] }
 
 // MOCK MODE - skip blockchain for Vercel deployment
 const SKIP_BLOCKCHAIN = true
