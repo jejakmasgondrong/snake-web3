@@ -52,7 +52,6 @@ next-env.d.ts
 **/migrations/
 **/programs/
 **/snake_program-keypair.json
-**/idl/
 **/typechain-types/
 
 # Solana keys (CRITICAL!)

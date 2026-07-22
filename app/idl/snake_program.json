@@ -1,0 +1,112 @@
+{
+  "version": "0.1.0",
+  "name": "snake_program",
+  "instructions": [
+    {
+      "name": "initializeGame",
+      "accounts": [
+        {
+          "name": "gameState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "submitScore",
+      "accounts": [
+        {
+          "name": "player",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "gameState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "score",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GameState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalPlayers",
+            "type": "u64"
+          },
+          {
+            "name": "highScore",
+            "type": "u64"
+          },
+          {
+            "name": "highScorePlayer",
+            "type": "publicKey"
+          },
+          {
+            "name": "lastUpdated",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "bestScore",
+            "type": "u64"
+          },
+          {
+            "name": "gamesPlayed",
+            "type": "u64"
+          },
+          {
+            "name": "lastPlayed",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}
