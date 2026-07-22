@@ -1,18 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Connection, PublicKey } from '@solana/web3.js'
+import { Program, AnchorProvider } from '@project-serum/anchor'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
-import { Program, AnchorProvider, BN } from '@project-serum/anchor'
 import WalletButton from './WalletButton'
 import Leaderboard from './Leaderboard'
 import idl from '../../idl/snake_program.json'
+
+// MOCK MODE - skip blockchain for Vercel deployment
+const SKIP_BLOCKCHAIN = true
 
 const BOARD_SIZE = 20
 const CELL_SIZE = 20
 const GAME_SPEED = 150
 
-// ✅ PROGRAM ID REAL - Bisa diganti kalo deploy
 const REAL_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS'
 const PROGRAM_ID = new PublicKey(REAL_PROGRAM_ID)
 const RPC_ENDPOINT = 'https://api.devnet.solana.com'
@@ -22,7 +24,6 @@ const INITIAL_SNAKE = [
   { x: 9, y: 10 },
   { x: 8, y: 10 },
 ]
-
 const DEFAULT_FOOD = { x: 15, y: 10 }
 
 const generateFood = (snake: { x: number; y: number }[]) => {
@@ -42,369 +43,299 @@ const generateFood = (snake: { x: number; y: number }[]) => {
       }
     }
   }
-  return DEFAULT_FOOD
+  return { x: 0, y: 0 }
 }
 
 export default function SnakeGame() {
-  const { connected, publicKey, signTransaction } = useWallet()
-  const [isMounted, setIsMounted] = useState(false)
+  const { publicKey, signTransaction } = useWallet()
   const [snake, setSnake] = useState(INITIAL_SNAKE)
-  const [direction, setDirection] = useState({ dx: 1, dy: 0 })
   const [food, setFood] = useState(DEFAULT_FOOD)
+  const [direction, setDirection] = useState({ dx: 1, dy: 0 })
+  const [nextDirection, setNextDirection] = useState({ dx: 1, dy: 0 })
   const [score, setScore] = useState(0)
-  const [highScore, setHighScore] = useState(0)
   const [gameOver, setGameOver] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [txStatus, setTxStatus] = useState('')
   const [txSignature, setTxSignature] = useState('')
-  const [txStatus, setTxStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
+  const [gameKey, setGameKey] = useState<PublicKey | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ✅ SUBMIT KE BLOCKCHAIN (REAL)
-  const submitScoreToBlockchain = useCallback(async (finalScore: number) => {
-    if (!connected || !publicKey || !signTransaction) {
-      console.log('⚠️ Wallet not connected')
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
+    const key = e.key
+    e.preventDefault()
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
+      const directions = {
+        ArrowUp: { dx: 0, dy: -1 },
+        ArrowDown: { dx: 0, dy: 1 },
+        ArrowLeft: { dx: -1, dy: 0 },
+        ArrowRight: { dx: 1, dy: 0 },
+      }
+      const newDir = directions[key as keyof typeof directions]
+      if (direction.dx + newDir.dx !== 0 || direction.dy + newDir.dy !== 0) {
+        setNextDirection(newDir)
+      }
+    }
+    if (key === ' ' || key === 'Space') {
+      e.preventDefault()
+      if (!isPlaying && !gameOver) startGame()
+    }
+  }, [direction, isPlaying, gameOver])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [handleKeyPress])
+
+  const getGameAccount = useCallback(async () => {
+    if (!publicKey) return null
+    try {
+      const connection = new Connection(RPC_ENDPOINT, 'confirmed')
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction } as any, {})
+      let program: any
+      if (!SKIP_BLOCKCHAIN) {
+        program = new Program(idl as any, PROGRAM_ID, provider)
+        const [gamePda] = await PublicKey.findProgramAddress(
+          [Buffer.from('game'), publicKey.toBuffer()],
+          PROGRAM_ID
+        )
+        try {
+          const gameAccount = await program.account.game.fetch(gamePda)
+          return { gamePda, gameAccount }
+        } catch {
+          return null
+        }
+      } else {
+        return { gamePda: PublicKey.default, gameAccount: null }
+      }
+    } catch {
+      return null
+    }
+  }, [publicKey, signTransaction])
+
+  const initializeGame = useCallback(async () => {
+    if (!publicKey || !signTransaction) {
       setTxStatus('error')
       return
     }
-
     setIsSubmitting(true)
     setTxStatus('submitting')
-    setTxSignature('')
-
     try {
       const connection = new Connection(RPC_ENDPOINT, 'confirmed')
-      const provider = new AnchorProvider(
-        connection,
-        { publicKey, signTransaction },
-        { commitment: 'confirmed' }
-      )
-
-      const program = new Program(idl as any, PROGRAM_ID, provider)
-
-      const [gameStatePDA] = await PublicKey.findProgramAddress(
-        [Buffer.from('game_state')],
-        PROGRAM_ID
-      )
-
-      const [playerPDA] = await PublicKey.findProgramAddress(
-        [Buffer.from('player'), publicKey.toBuffer()],
-        PROGRAM_ID
-      )
-
-      const tx = await program.methods
-        .submitScore(new BN(finalScore))
-        .accounts({
-          player: playerPDA,
-          gameState: gameStatePDA,
-          authority: publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .transaction()
-
-      const signature = await provider.sendAndConfirm!(tx)
-      
-      setTxSignature(signature)
-      setTxStatus('success')
-      console.log('✅ Score submitted! TX:', signature)
-      
-      // Simpan ke leaderboard
-      const scores = JSON.parse(localStorage.getItem('snakeScores') || '[]')
-      scores.push({ 
-        player: publicKey.toString().slice(0, 4) + '...' + publicKey.toString().slice(-4),
-        score: finalScore,
-        timestamp: Date.now(),
-        tx: signature
-      })
-      localStorage.setItem('snakeScores', JSON.stringify(scores))
-
-    } catch (error: any) {
-      console.error('❌ Failed to submit score:', error)
-      setTxStatus('error')
-      
-      // Handle error spesifik
-      if (error.message?.includes('insufficient funds')) {
-        alert('❌ Not enough SOL for transaction. Please get devnet SOL from faucet.')
-      } else if (error.message?.includes('transaction simulation failed')) {
-        alert('❌ Transaction simulation failed. Try again with more SOL.')
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction } as any, {})
+      let program: any
+      if (!SKIP_BLOCKCHAIN) {
+        program = new Program(idl as any, PROGRAM_ID, provider)
+        const [gamePda] = await PublicKey.findProgramAddress(
+          [Buffer.from('game'), publicKey.toBuffer()],
+          PROGRAM_ID
+        )
+        const tx = await program.methods
+          .initializeGame(BOARD_SIZE)
+          .accounts({
+            game: gamePda,
+            player: publicKey,
+            systemProgram: PublicKey.default,
+          })
+          .rpc()
+        setGameKey(gamePda)
+        setIsInitialized(true)
+        setTxSignature(tx)
+        setTxStatus('success')
       } else {
-        alert(`❌ Failed to submit score: ${error.message || 'Unknown error'}`)
+        console.log('🔷 MOCK: initializeGame')
+        setGameKey(PublicKey.default)
+        setIsInitialized(true)
+        setTxStatus('success')
+        setTxSignature('mock_tx_123')
       }
+    } catch (error) {
+      console.error(error)
+      setTxStatus('error')
     } finally {
       setIsSubmitting(false)
     }
-  }, [connected, publicKey, signTransaction])
+  }, [publicKey, signTransaction])
 
-  const resetGame = useCallback(() => {
+  const startGame = useCallback(() => {
+    if (!isInitialized && publicKey) {
+      initializeGame()
+    }
     setSnake(INITIAL_SNAKE)
-    setDirection({ dx: 1, dy: 0 })
     setScore(0)
     setGameOver(false)
-    setIsPaused(false)
-    setTxStatus('idle')
-    setTxSignature('')
+    setDirection({ dx: 1, dy: 0 })
+    setNextDirection({ dx: 1, dy: 0 })
     setFood(generateFood(INITIAL_SNAKE))
-  }, [])
+    setIsPlaying(true)
+  }, [isInitialized, publicKey, initializeGame])
 
-  const updateGame = useCallback(() => {
-    if (gameOver || isPaused) return
-
-    setSnake(prevSnake => {
-      const head = prevSnake[0]
-      const newHead = {
-        x: head.x + direction.dx,
-        y: head.y + direction.dy,
-      }
-
-      // Wall collision
-      if (newHead.x < 0 || newHead.x >= BOARD_SIZE || 
-          newHead.y < 0 || newHead.y >= BOARD_SIZE) {
-        setGameOver(true)
-        if (score > highScore) {
-          setHighScore(score)
-          localStorage.setItem('snakeHighScore', String(score))
-        }
-        if (connected && score > 0) {
-          submitScoreToBlockchain(score)
-        }
-        return prevSnake
-      }
-
-      // Self collision
-      if (prevSnake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
-        setGameOver(true)
-        if (score > highScore) {
-          setHighScore(score)
-          localStorage.setItem('snakeHighScore', String(score))
-        }
-        if (connected && score > 0) {
-          submitScoreToBlockchain(score)
-        }
-        return prevSnake
-      }
-
-      const newSnake = [newHead, ...prevSnake]
-
-      // Eat food
-      if (newHead.x === food.x && newHead.y === food.y) {
-        setScore(prev => prev + 1)
-        setFood(generateFood(newSnake))
-        return newSnake
-      }
-
-      newSnake.pop()
-      return newSnake
-    })
-  }, [direction, food, gameOver, isPaused, score, highScore, connected, submitScoreToBlockchain])
-
-  useEffect(() => {
-    setIsMounted(true)
-    const saved = localStorage.getItem('snakeHighScore')
-    if (saved) {
-      setHighScore(parseInt(saved))
+  const moveSnake = useCallback(async () => {
+    if (gameOver || !isPlaying) return
+    setDirection(nextDirection)
+    const head = snake[0]
+    const newHead = {
+      x: head.x + nextDirection.dx,
+      y: head.y + nextDirection.dy,
     }
+    if (newHead.x < 0 || newHead.x >= BOARD_SIZE || newHead.y < 0 || newHead.y >= BOARD_SIZE) {
+      setGameOver(true)
+      setIsPlaying(false)
+      return
+    }
+    if (snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)) {
+      setGameOver(true)
+      setIsPlaying(false)
+      return
+    }
+    let newSnake = [newHead, ...snake]
+    let newScore = score
+    let newFood = food
+    if (newHead.x === food.x && newHead.y === food.y) {
+      newScore = score + 1
+      setScore(newScore)
+      newFood = generateFood(newSnake)
+      setFood(newFood)
+    } else {
+      newSnake.pop()
+    }
+    setSnake(newSnake)
+    if (publicKey && isInitialized && gameKey && !SKIP_BLOCKCHAIN) {
+      try {
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed')
+        const provider = new AnchorProvider(connection, { publicKey, signTransaction } as any, {})
+        const program = new Program(idl as any, PROGRAM_ID, provider)
+        let directionEnum = ''
+        if (nextDirection.dx === 0 && nextDirection.dy === -1) directionEnum = 'Up'
+        else if (nextDirection.dx === 0 && nextDirection.dy === 1) directionEnum = 'Down'
+        else if (nextDirection.dx === -1 && nextDirection.dy === 0) directionEnum = 'Left'
+        else if (nextDirection.dx === 1 && nextDirection.dy === 0) directionEnum = 'Right'
+        if (directionEnum) {
+          await program.methods
+            .moveSnake({ [directionEnum.toLowerCase()]: {} })
+            .accounts({
+              game: gameKey,
+              player: publicKey,
+            })
+            .rpc()
+        }
+      } catch (error) {
+        console.error('Error saving move to blockchain:', error)
+      }
+    }
+  }, [snake, food, score, gameOver, isPlaying, nextDirection, direction, publicKey, isInitialized, gameKey, signTransaction])
+
+  const resetGame = useCallback(async () => {
+    setGameOver(false)
+    setIsPlaying(false)
+    setSnake(INITIAL_SNAKE)
+    setScore(0)
+    setDirection({ dx: 1, dy: 0 })
+    setNextDirection({ dx: 1, dy: 0 })
     setFood(generateFood(INITIAL_SNAKE))
-  }, [])
+    setTxStatus('')
+    if (publicKey && gameKey && !SKIP_BLOCKCHAIN) {
+      try {
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed')
+        const provider = new AnchorProvider(connection, { publicKey, signTransaction } as any, {})
+        const program = new Program(idl as any, PROGRAM_ID, provider)
+        await program.methods
+          .resetGame()
+          .accounts({
+            game: gameKey,
+            player: publicKey,
+          })
+          .rpc()
+      } catch (error) {
+        console.error('Error resetting game:', error)
+      }
+    }
+  }, [publicKey, gameKey, signTransaction])
 
   useEffect(() => {
-    if (!gameOver && !isPaused) {
-      gameLoopRef.current = setInterval(updateGame, GAME_SPEED)
+    if (gameLoopRef.current) clearInterval(gameLoopRef.current)
+    if (isPlaying && !gameOver) {
+      gameLoopRef.current = setInterval(moveSnake, GAME_SPEED)
     }
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current)
     }
-  }, [updateGame, gameOver, isPaused])
+  }, [isPlaying, gameOver, moveSnake])
 
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'r' || e.key === 'R') {
-        resetGame()
-        return
-      }
-
-      if (e.key === 'p' || e.key === 'P') {
-        setIsPaused(prev => !prev)
-        return
-      }
-
-      if (gameOver) return
-
-      switch (e.key) {
-        case 'ArrowUp':
-          if (direction.dy === 0) setDirection({ dx: 0, dy: -1 })
-          break
-        case 'ArrowDown':
-          if (direction.dy === 0) setDirection({ dx: 0, dy: 1 })
-          break
-        case 'ArrowLeft':
-          if (direction.dx === 0) setDirection({ dx: -1, dy: 0 })
-          break
-        case 'ArrowRight':
-          if (direction.dx === 0) setDirection({ dx: 1, dy: 0 })
-          break
-      }
+    if (publicKey) {
+      getGameAccount().then(result => {
+        if (result?.gameAccount) {
+          setIsInitialized(true)
+          setGameKey(result.gamePda)
+        }
+      })
     }
+  }, [publicKey, getGameAccount])
 
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [direction, gameOver, resetGame])
-
-  if (!isMounted) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-green-400 font-mono">Loading...</div>
-      </div>
-    )
+  const renderCell = (x: number, y: number) => {
+    const isSnake = snake.some(seg => seg.x === x && seg.y === y)
+    const isFood = food.x === x && food.y === y
+    let className = 'w-5 h-5 border border-gray-700'
+    if (isSnake) className += ' bg-green-500'
+    if (isFood) className += ' bg-red-500'
+    return <div key={`${x}-${y}`} className={className} />
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <div className="w-full max-w-4xl flex justify-between items-center mb-4">
-        <h1 className="text-3xl md:text-4xl font-mono text-green-400">
-          🐍 SNAKE
-          <span className="text-xs text-zinc-600 ml-4">on Solana</span>
-        </h1>
+    <div className="flex flex-col items-center gap-4 p-4">
+      <div className="flex gap-4 items-center">
         <WalletButton />
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-        <div className="flex flex-col items-center">
-          <div className="flex gap-6 text-green-400 font-mono text-base md:text-xl mb-4">
-            <div>🍎 Score: <span className="font-bold">{score}</span></div>
-            <div>🏆 High: <span className="text-yellow-400 font-bold">{highScore}</span></div>
-            <div>
-              {gameOver && '💀'}
-              {isPaused && '⏸️'}
-              {!gameOver && !isPaused && '▶️'}
-            </div>
-          </div>
-
-          <div 
-            className="relative border-4 border-green-400 bg-zinc-900"
-            style={{
-              width: BOARD_SIZE * CELL_SIZE,
-              height: BOARD_SIZE * CELL_SIZE,
-            }}
-            suppressHydrationWarning
+        {publicKey && !isInitialized && (
+          <button
+            onClick={initializeGame}
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
           >
-            <div 
-              className="absolute inset-0 grid opacity-10"
-              style={{
-                gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`,
-                gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)`,
-              }}
-            >
-              {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, i) => (
-                <div key={i} className="border border-green-400/20" />
-              ))}
-            </div>
-
-            {snake.map((seg, i) => (
-              <div
-                key={i}
-                className="absolute bg-green-400 transition-all duration-75"
-                style={{
-                  left: seg.x * CELL_SIZE,
-                  top: seg.y * CELL_SIZE,
-                  width: CELL_SIZE - 1,
-                  height: CELL_SIZE - 1,
-                  boxShadow: i === 0 ? '0 0 20px #00ff41' : 'none',
-                  borderRadius: i === 0 ? '4px' : '2px',
-                }}
-                suppressHydrationWarning
-              />
-            ))}
-
-            <div
-              className="absolute bg-red-500 animate-pulse"
-              style={{
-                left: food.x * CELL_SIZE,
-                top: food.y * CELL_SIZE,
-                width: CELL_SIZE - 1,
-                height: CELL_SIZE - 1,
-                borderRadius: '50%',
-                boxShadow: '0 0 25px #ff0040',
-              }}
-              suppressHydrationWarning
-            />
-          </div>
-
-          <div className="mt-4 text-zinc-600 font-mono text-xs md:text-sm flex flex-wrap gap-4 justify-center">
-            <span>⬆️⬇️⬅️➡️ Move</span>
-            <span>|</span>
-            <span>⏸️ P = Pause</span>
-            <span>|</span>
-            <span>🔄 R = Restart</span>
-            {connected && <span className="text-green-400">✅ Connected</span>}
-          </div>
-
-          {/* Status Transaksi */}
-          {txStatus === 'submitting' && (
-            <div className="mt-2 text-yellow-400 font-mono text-sm animate-pulse">
-              ⏳ Submitting score to Solana...
-            </div>
-          )}
-          
-          {txStatus === 'success' && txSignature && (
-            <div className="mt-2 text-green-400 font-mono text-xs text-center">
-              ✅ TX: <a 
-                href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-green-300"
-              >
-                {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
-              </a>
-            </div>
-          )}
-
-          {txStatus === 'error' && (
-            <div className="mt-2 text-red-400 font-mono text-sm">
-              ❌ Transaction failed
-            </div>
-          )}
-        </div>
-
-        <div className="w-full md:w-auto">
-          <Leaderboard />
-        </div>
+            {isSubmitting ? 'Initializing...' : 'Initialize Game'}
+          </button>
+        )}
       </div>
-
-      {gameOver && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border-2 border-green-400 p-6 md:p-8 rounded-lg text-center max-w-sm w-full">
-            <h2 className="text-3xl md:text-4xl font-mono text-red-500 mb-4">💀 GAME OVER</h2>
-            <p className="text-green-400 font-mono text-xl mb-2">
-              Score: <span className="text-white font-bold">{score}</span>
-            </p>
-            <p className="text-yellow-400 font-mono text-lg mb-4">
-              🏆 High Score: {highScore}
-            </p>
-            {connected && txStatus === 'success' && (
-              <p className="text-xs text-green-400 font-mono mb-4 break-all">
-                ✅ Saved! TX: {txSignature.slice(0, 8)}...{txSignature.slice(-8)}
-              </p>
-            )}
-            {connected && txStatus === 'error' && (
-              <p className="text-xs text-red-400 font-mono mb-4">
-                ❌ Failed to save. Try again!
-              </p>
-            )}
-            {!connected && (
-              <p className="text-xs text-zinc-500 font-mono mb-4">
-                🔒 Connect wallet to save scores
-              </p>
-            )}
-            <button
-              onClick={resetGame}
-              className="px-6 md:px-8 py-3 bg-green-400 text-black font-mono font-bold text-lg md:text-xl rounded hover:bg-green-300 transition-all w-full"
-            >
-              🔄 Play Again
-            </button>
-            <p className="text-zinc-500 text-xs mt-4 font-mono">Press R or click button</p>
-          </div>
+      {txStatus && (
+        <div className={`text-sm ${txStatus === 'error' ? 'text-red-500' : 'text-green-500'}`}>
+          {txStatus === 'submitting' ? 'Submitting transaction...' :
+            txStatus === 'success' ? `✅ Success! Signature: ${txSignature?.slice(0, 20)}...` :
+            txStatus === 'error' ? '❌ Transaction failed' : ''}
         </div>
       )}
+      <div className="relative">
+        <div className="grid grid-cols-20 gap-0 border-2 border-gray-600">
+          {Array.from({ length: BOARD_SIZE }).map((_, y) =>
+            Array.from({ length: BOARD_SIZE }).map((_, x) => renderCell(x, y))
+          )}
+        </div>
+        {gameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
+            <div className="text-4xl font-bold text-white">Game Over!</div>
+            <div className="text-2xl text-white">Score: {score}</div>
+            <button
+              onClick={resetGame}
+              className="mt-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Play Again
+            </button>
+          </div>
+        )}
+        {!isPlaying && !gameOver && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
+            <button
+              onClick={startGame}
+              className="px-6 py-3 bg-green-500 text-white text-xl rounded hover:bg-green-600"
+            >
+              {publicKey && !isInitialized ? 'Initialize & Start' : 'Start Game'}
+            </button>
+            <div className="text-white mt-2 text-sm">Use arrow keys to control</div>
+          </div>
+        )}
+      </div>
+      <div className="text-white text-xl">Score: {score}</div>
+      {publicKey && gameKey && <Leaderboard />}
     </div>
   )
 }
