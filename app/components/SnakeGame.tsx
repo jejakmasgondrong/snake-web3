@@ -16,6 +16,7 @@ const SKIP_BLOCKCHAIN = true
 const BOARD_SIZE = 20
 const CELL_SIZE = 20
 const GAME_SPEED = 150
+const SWIPE_THRESHOLD = 30
 
 const REAL_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS'
 const PROGRAM_ID = new PublicKey(REAL_PROGRAM_ID)
@@ -64,31 +65,64 @@ export default function SnakeGame() {
   const [isInitialized, setIsInitialized] = useState(false)
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null)
 
+  const changeDirection = useCallback((dx: number, dy: number) => {
+    if (direction.dx + dx !== 0 || direction.dy + dy !== 0) {
+      setNextDirection({ dx, dy })
+    }
+  }, [direction])
+
   const handleKeyPress = useCallback((e: KeyboardEvent) => {
     const key = e.key
     e.preventDefault()
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
-      const directions = {
+      const dirMap: Record<string, { dx: number; dy: number }> = {
         ArrowUp: { dx: 0, dy: -1 },
         ArrowDown: { dx: 0, dy: 1 },
         ArrowLeft: { dx: -1, dy: 0 },
         ArrowRight: { dx: 1, dy: 0 },
       }
-      const newDir = directions[key as keyof typeof directions]
-      if (direction.dx + newDir.dx !== 0 || direction.dy + newDir.dy !== 0) {
-        setNextDirection(newDir)
-      }
+      const newDir = dirMap[key]
+      changeDirection(newDir.dx, newDir.dy)
     }
     if (key === ' ' || key === 'Space') {
       e.preventDefault()
       if (!isPlaying && !gameOver) startGame()
     }
-  }, [direction, isPlaying, gameOver])
+  }, [changeDirection, isPlaying, gameOver])
+
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0]
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+  }, [])
+
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    if (!touchStartRef.current) return
+    const touch = e.changedTouches[0]
+    const dx = touch.clientX - touchStartRef.current.x
+    const dy = touch.clientY - touchStartRef.current.y
+    touchStartRef.current = null
+
+    if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      changeDirection(dx > 0 ? 1 : -1, 0)
+    } else {
+      changeDirection(0, dy > 0 ? 1 : -1)
+    }
+  }, [changeDirection])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [handleKeyPress])
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [handleKeyPress, handleTouchStart, handleTouchEnd])
 
   const getGameAccount = useCallback(async () => {
     if (!publicKey) return null
@@ -276,17 +310,30 @@ export default function SnakeGame() {
     }
   }, [publicKey, getGameAccount])
 
+  const cellSize = `min(${80 / BOARD_SIZE}vw, 20px)`
+
   const renderCell = (x: number, y: number) => {
     const isSnake = snake.some(seg => seg.x === x && seg.y === y)
     const isFood = food.x === x && food.y === y
-    let className = 'w-5 h-5 border border-gray-700'
+    let className = 'border border-gray-700'
     if (isSnake) className += ' bg-green-500'
     if (isFood) className += ' bg-red-500'
-    return <div key={`${x}-${y}`} className={className} />
+    return <div key={`${x}-${y}`} className={className} style={{ width: cellSize, height: cellSize }} />
   }
 
+  const DPadButton = ({ dx, dy, label }: { dx: number; dy: number; label: string }) => (
+    <button
+      onTouchStart={(e) => { e.preventDefault(); changeDirection(dx, dy) }}
+      onClick={() => changeDirection(dx, dy)}
+      className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-700 text-white text-2xl rounded-xl active:bg-gray-500 select-none touch-manipulation flex items-center justify-center"
+      aria-label={`Move ${label}`}
+    >
+      {label === 'Up' ? '▲' : label === 'Down' ? '▼' : label === 'Left' ? '◀' : '▶'}
+    </button>
+  )
+
   return (
-    <div className="flex flex-col items-center gap-4 p-4">
+    <div className="flex flex-col items-center gap-4 p-4 touch-none">
       <div className="flex gap-4 items-center">
         <WalletButton />
         {publicKey && !isInitialized && (
@@ -332,11 +379,30 @@ export default function SnakeGame() {
             >
               {publicKey && !isInitialized ? 'Initialize & Start' : 'Start Game'}
             </button>
-            <div className="text-white mt-2 text-sm">Use arrow keys to control</div>
+            <div className="text-white mt-2 text-sm">Use arrow keys or swipe/tap to control</div>
           </div>
         )}
       </div>
       <div className="text-white text-xl">Score: {score}</div>
+      {isPlaying && (
+        <div className="sm:hidden flex flex-col items-center gap-2 mt-2">
+          <div className="flex gap-2">
+            <div className="w-14" />
+            <DPadButton dx={0} dy={-1} label="Up" />
+            <div className="w-14" />
+          </div>
+          <div className="flex gap-2">
+            <DPadButton dx={-1} dy={0} label="Left" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-800 text-gray-400 text-xs rounded-xl flex items-center justify-center">OK</div>
+            <DPadButton dx={1} dy={0} label="Right" />
+          </div>
+          <div className="flex gap-2">
+            <div className="w-14" />
+            <DPadButton dx={0} dy={1} label="Down" />
+            <div className="w-14" />
+          </div>
+        </div>
+      )}
       {publicKey && gameKey && <Leaderboard />}
     </div>
   )
