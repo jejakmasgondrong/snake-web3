@@ -7,7 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import WalletButton from './WalletButton'
 import Leaderboard from './Leaderboard'
 
-// IDL dummy untuk mock mode (ga dipake karena SKIP_BLOCKCHAIN = true)
+// Dummy IDL for mock mode (not used because SKIP_BLOCKCHAIN = true)
 const idl = { version: "0.1.0", name: "snake_program", instructions: [] }
 
 // MOCK MODE - skip blockchain for Vercel deployment
