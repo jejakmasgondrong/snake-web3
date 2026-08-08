@@ -6,7 +6,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://api.devnet.solana.com https://*.helius-rpc.com",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",
