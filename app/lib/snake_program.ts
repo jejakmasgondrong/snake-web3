@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/snake_program.json`.
  */
 export type SnakeProgram = {
-  "address": "5y2DQP1yD2qpdfz51Sc4Q5cKMJhZZZPbgGXZxc1Q59Bc",
+  "address": "4XTohaWtkfLNWGNfqNbqVWzGtNxTxJS9gT2L6TkGKm3t",
   "metadata": {
     "name": "snakeProgram",
     "version": "0.1.0",
@@ -134,6 +134,10 @@ export type SnakeProgram = {
         {
           "name": "score",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
         }
       ]
     }
@@ -215,6 +219,10 @@ export type SnakeProgram = {
           {
             "name": "lastPlayed",
             "type": "i64"
+          },
+          {
+            "name": "name",
+            "type": "string"
           }
         ]
       }

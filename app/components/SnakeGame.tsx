@@ -84,6 +84,7 @@ export default function SnakeGame() {
   const [score, setScore] = useState(0)
   const [gameOver, setGameOver] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [playerName, setPlayerName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [txStatus, setTxStatus] = useState('')
   const [txSignature, setTxSignature] = useState('')
@@ -220,7 +221,7 @@ export default function SnakeGame() {
       const [gameState] = await gameStatePda(SNAKE_PROGRAM_ID)
       const [player] = await playerPda(SNAKE_PROGRAM_ID, publicKey)
       const tx = await program.methods
-        .submitScore(new BN(finalScore))
+        .submitScore(new BN(finalScore), playerName)
         .accountsStrict({
           player,
           gameState,
@@ -234,7 +235,7 @@ export default function SnakeGame() {
       console.error('submit_score failed:', error)
       setTxStatus('error')
     }
-  }, [publicKey, signTransaction, isInitialized, connect])
+  }, [publicKey, signTransaction, isInitialized, connect, playerName])
 
   const moveSnake = useCallback(() => {
     if (gameOver || !isPlaying) return
@@ -357,6 +358,13 @@ export default function SnakeGame() {
         )}
         {!isPlaying && !gameOver && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50">
+            <input
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value.slice(0, 32))}
+              placeholder="Enter your name (optional)"
+              maxLength={32}
+              className="mb-3 px-4 py-2 rounded bg-zinc-800 text-white border border-green-500/40 focus:outline-none focus:border-green-500 w-64 text-center"
+            />
             <button
               onClick={startGame}
               className="px-6 py-3 bg-green-500 text-white text-xl rounded hover:bg-green-600"

@@ -7,11 +7,14 @@ import { RPC_ENDPOINT, getProgram } from '../lib/snake-program'
 
 interface LeaderboardEntry {
   player: string
+  name: string
   bestScore: number
   gamesPlayed: number
 }
 
 const PROGRAM_VERSION = '0.1.0'
+
+const shortAddr = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`
 
 export default function Leaderboard({ isInitialized }: { isInitialized: boolean }) {
   const { connected, publicKey, signTransaction } = useWallet()
@@ -34,6 +37,7 @@ export default function Leaderboard({ isInitialized }: { isInitialized: boolean 
       const sorted = accounts
         .map(a => ({
           player: a.account.authority.toString(),
+          name: a.account.name.trim(),
           bestScore: a.account.bestScore.toNumber(),
           gamesPlayed: a.account.gamesPlayed.toNumber(),
         }))
@@ -91,22 +95,26 @@ export default function Leaderboard({ isInitialized }: { isInitialized: boolean 
       ) : (
         <div className="space-y-1">
           {scores.map((entry, index) => (
-            <div
-              key={entry.player}
-              className={`flex justify-between font-mono text-sm py-1 px-2 rounded ${
-                publicKey && entry.player === publicKey.toString()
-                  ? 'bg-green-500/10 border border-green-500/30'
-                  : ''
-              }`}
-            >
-              <span className="text-zinc-300 truncate mr-2">
-                {index === 0 && '🥇 '}
-                {index === 1 && '🥈 '}
-                {index === 2 && '🥉 '}
-                {index >= 3 && `#${index + 1} `}
-                {entry.player.toString().slice(0, 4)}...{entry.player.toString().slice(-4)}
-              </span>
-              <span className="text-green-400 font-bold">{entry.bestScore}</span>
+            <div key={entry.player}>
+              <div
+                className={`flex justify-between font-mono text-sm py-1 px-2 rounded ${
+                  publicKey && entry.player === publicKey.toString()
+                    ? 'bg-green-500/10 border border-green-500/30'
+                    : ''
+                }`}
+              >
+                <span className="text-zinc-300 truncate mr-2">
+                  {index === 0 && '🥇 '}
+                  {index === 1 && '🥈 '}
+                  {index === 2 && '🥉 '}
+                  {index >= 3 && `#${index + 1} `}
+                  {entry.name || shortAddr(entry.player)}
+                </span>
+                <span className="text-green-400 font-bold">{entry.bestScore}</span>
+              </div>
+              <div className="text-[10px] text-zinc-600 font-mono pl-6 -mt-1 mb-1">
+                {shortAddr(entry.player)}
+              </div>
             </div>
           ))}
         </div>
