@@ -1,14 +1,20 @@
-{
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/snake_program.json`.
+ */
+export type SnakeProgram = {
   "address": "9aK7xj8ixrmr3Hgu3QfXkvqWThzrCDRaexZJiNzZyHCs",
   "metadata": {
-    "name": "snake_program",
+    "name": "snakeProgram",
     "version": "0.1.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },
   "instructions": [
     {
-      "name": "initialize_game",
+      "name": "initializeGame",
       "discriminator": [
         44,
         62,
@@ -21,7 +27,7 @@
       ],
       "accounts": [
         {
-          "name": "game_state",
+          "name": "gameState",
           "writable": true,
           "pda": {
             "seeds": [
@@ -49,14 +55,14 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "submit_score",
+      "name": "submitScore",
       "discriminator": [
         212,
         128,
@@ -92,7 +98,7 @@
           }
         },
         {
-          "name": "game_state",
+          "name": "gameState",
           "writable": true,
           "pda": {
             "seeds": [
@@ -120,7 +126,7 @@
           "signer": true
         },
         {
-          "name": "system_program",
+          "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         }
       ],
@@ -134,7 +140,7 @@
   ],
   "accounts": [
     {
-      "name": "GameState",
+      "name": "gameState",
       "discriminator": [
         144,
         94,
@@ -147,7 +153,7 @@
       ]
     },
     {
-      "name": "PlayerAccount",
+      "name": "playerAccount",
       "discriminator": [
         224,
         184,
@@ -162,7 +168,7 @@
   ],
   "types": [
     {
-      "name": "GameState",
+      "name": "gameState",
       "type": {
         "kind": "struct",
         "fields": [
@@ -171,26 +177,26 @@
             "type": "pubkey"
           },
           {
-            "name": "total_players",
+            "name": "totalPlayers",
             "type": "u64"
           },
           {
-            "name": "high_score",
+            "name": "highScore",
             "type": "u64"
           },
           {
-            "name": "high_score_player",
+            "name": "highScorePlayer",
             "type": "pubkey"
           },
           {
-            "name": "last_updated",
+            "name": "lastUpdated",
             "type": "i64"
           }
         ]
       }
     },
     {
-      "name": "PlayerAccount",
+      "name": "playerAccount",
       "type": {
         "kind": "struct",
         "fields": [
@@ -199,19 +205,19 @@
             "type": "pubkey"
           },
           {
-            "name": "best_score",
+            "name": "bestScore",
             "type": "u64"
           },
           {
-            "name": "games_played",
+            "name": "gamesPlayed",
             "type": "u64"
           },
           {
-            "name": "last_played",
+            "name": "lastPlayed",
             "type": "i64"
           }
         ]
       }
     }
   ]
-}
+};
